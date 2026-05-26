@@ -1,0 +1,23 @@
+[package]
+name = "netmap"
+version = "0.1.0"
+description = "Cross-platform network topology mapper"
+authors = ["NetMap"]
+edition = "2021"
+
+[lib]
+name = "netmap_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+eframe = { version = "0.34.2", default-features = false, features = ["glow", "default_fonts", "x11"] }
+egui = "0.34.2"

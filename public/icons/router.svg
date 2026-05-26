@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Корпус роутера -->
+  <rect x="10" y="14" width="44" height="36" rx="4" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <!-- Антенны -->
+  <path d="M24 14L24 6" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="24" cy="4" r="2" fill="#6366f1"/>
+  <path d="M40 14L40 6" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="40" cy="4" r="2" fill="#6366f1"/>
+  <!-- Индикаторы -->
+  <circle cx="22" cy="24" r="3" fill="#22c55e"/>
+  <circle cx="32" cy="24" r="3" fill="#22c55e"/>
+  <circle cx="42" cy="24" r="3" fill="#38bdf8"/>
+  <!-- Стрелки -->
+  <path d="M22 36L18 32L22 28" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M42 36L46 32L42 28" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

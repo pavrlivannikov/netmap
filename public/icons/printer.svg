@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Принтер -->
+  <rect x="10" y="14" width="44" height="22" rx="3" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <!-- Выход бумаги -->
+  <rect x="18" y="8" width="28" height="6" rx="2" stroke="#94a3b8" stroke-width="2" fill="none"/>
+  <!-- Бумага -->
+  <rect x="20" y="4" width="24" height="4" rx="1" fill="#e2e8f0"/>
+  <!-- Лоток -->
+  <rect x="22" y="38" width="20" height="6" rx="2" stroke="#94a3b8" stroke-width="2" fill="none"/>
+  <!-- Кнопки -->
+  <circle cx="28" cy="20" r="3" fill="#22c55e"/>
+  <circle cx="38" cy="20" r="3" fill="#334155"/>
+</svg>

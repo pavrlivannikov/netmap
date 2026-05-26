@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Серверная стойка -->
+  <rect x="16" y="6" width="32" height="52" rx="3" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <!-- Блоки -->
+  <rect x="20" y="12" width="24" height="10" rx="2" fill="#334155"/>
+  <rect x="20" y="26" width="24" height="10" rx="2" fill="#334155"/>
+  <rect x="20" y="40" width="24" height="10" rx="2" fill="#334155"/>
+  <!-- Светодиоды -->
+  <circle cx="26" cy="17" r="2" fill="#22c55e"/>
+  <circle cx="34" cy="17" r="2" fill="#22c55e"/>
+  <circle cx="26" cy="31" r="2" fill="#38bdf8"/>
+  <circle cx="34" cy="31" r="2" fill="#22c55e"/>
+  <circle cx="26" cy="45" r="2" fill="#22c55e"/>
+  <circle cx="34" cy="45" r="2" fill="#eab308"/>
+</svg>

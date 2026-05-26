@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Корпус свитча -->
+  <rect x="8" y="18" width="48" height="32" rx="4" stroke="#94a3b8" stroke-width="2.5" fill="none"/>
+  <!-- Порты (верхний ряд) -->
+  <rect x="14" y="26" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="23" y="26" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="32" y="26" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="41" y="26" width="6" height="4" rx="1" fill="#334155"/>
+  <!-- Порты (нижний ряд) -->
+  <rect x="14" y="38" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="23" y="38" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="32" y="38" width="6" height="4" rx="1" fill="#334155"/>
+  <rect x="41" y="38" width="6" height="4" rx="1" fill="#334155"/>
+  <!-- Светодиоды -->
+  <circle cx="17" cy="30" r="1.5" fill="#22c55e"/>
+  <circle cx="17" cy="42" r="1.5" fill="#22c55e"/>
+  <circle cx="26" cy="30" r="1.5" fill="#22c55e"/>
+  <circle cx="35" cy="42" r="1.5" fill="#38bdf8"/>
+  <!-- Бренд-полоса -->
+  <rect x="8" y="18" width="48" height="3" rx="1" fill="#6366f1"/>
+</svg>
