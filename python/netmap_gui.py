@@ -145,7 +145,12 @@ class NetMapApp:
         self.notebook.add(self.tab_topology, text="  Топология  ")
         self._build_topology_tab()
 
-        # Tab 3: Graph (interactive)
+        # Tab 3: Structure (tree)
+        self.tab_structure = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_structure, text="  🗂 Структура  ")
+        self._build_structure_tab()
+
+        # Tab 4: Graph (interactive)
         self.tab_graph = ttk.Frame(self.notebook)
         self.notebook.add(self.tab_graph, text="  Граф  ")
         self._build_graph_tab()
@@ -367,6 +372,94 @@ class NetMapApp:
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
         self._add_copy_bindings(self.topo_text)
+
+    def _build_structure_tab(self):
+        """Structure tab: tree view (сеть → подсеть → устройство → порты)."""
+        frame = self.tab_structure
+        frame.grid_rowconfigure(0, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
+
+        columns = ("value",)
+        self.structure_tree = ttk.Treeview(frame, columns=columns, show="tree",
+                                            style="Structure.Treeview")
+        vsb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.structure_tree.yview)
+        self.structure_tree.configure(yscrollcommand=vsb.set)
+        self.structure_tree.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        vsb.grid(row=0, column=1, sticky="ns")
+
+        # Bind double-click to expand/collapse
+        self.structure_tree.bind("<Double-1>", lambda e: self._toggle_tree_node())
+
+    def _populate_structure(self, result: ScanResult):
+        """Заполнить дерево из результатов сканирования."""
+        tree = self.structure_tree
+        tree.delete(*tree.get_children())
+
+        # Root: network
+        net_iid = tree.insert("", tk.END, text=f"🌐 {result.network}", open=True)
+
+        # Group devices by type
+        groups: dict[str, list] = {}
+        for d in result.devices:
+            dtype = d.device_type or "unknown"
+            groups.setdefault(dtype, []).append(d)
+
+        type_icons = {
+            "router": "📡", "switch": "🔀", "network-device": "🔀",
+            "server": "🖥", "printer": "🖨", "camera": "📷",
+            "phone": "📱", "laptop": "💻", "desktop": "🖥",
+            "iot": "🔌", "unknown": "❓"
+        }
+
+        type_names = {
+            "router": "Маршрутизаторы", "switch": "Коммутаторы",
+            "network-device": "Сетевое оборудование", "server": "Серверы",
+            "printer": "Принтеры", "camera": "Камеры",
+            "phone": "Телефоны", "laptop": "Ноутбуки",
+            "desktop": "Компьютеры", "iot": "IoT устройства",
+            "unknown": "Неизвестные"
+        }
+
+        for dtype in sorted(groups):
+            devs = groups[dtype]
+            icon = type_icons.get(dtype, "❓")
+            name = type_names.get(dtype, dtype.capitalize())
+            gid = tree.insert(net_iid, tk.END, text=f"{icon} {name} ({len(devs)})", open=True)
+
+            for d in sorted(devs, key=lambda x: _ip_sort_key(x.ip)):
+                status = "🟢" if d.status == "online" else "🔴"
+                label = f"{status} {d.ip}"
+                if d.hostname:
+                    label += f" — {d.hostname}"
+                if d.mac:
+                    label += f"  [{d.mac}]"
+                if d.vendor:
+                    label += f" ({d.vendor})"
+
+                did = tree.insert(gid, tk.END, text=label)
+
+                # Ports
+                if d.ports:
+                    ports_iid = tree.insert(did, tk.END, text=f"🔌 Порты ({len(d.ports)})", open=False)
+                    for p in sorted(d.ports, key=lambda x: x.port):
+                        svc = f" — {p.service}" if p.service else ""
+                        tree.insert(ports_iid, tk.END,
+                                    text=f"  {p.port}/{p.protocol}{svc}")
+
+                # OS info
+                if d.os:
+                    tree.insert(did, tk.END, text=f"💿 OS: {d.os}")
+
+    def _toggle_tree_node(self):
+        """Toggle expand/collapse on double-click."""
+        sel = self.structure_tree.selection()
+        if sel:
+            item = sel[0]
+            if self.structure_tree.get_children(item):
+                if self.structure_tree.item(item, "open"):
+                    self.structure_tree.item(item, open=False)
+                else:
+                    self.structure_tree.item(item, open=True)
 
     def _build_settings_tab(self):
         """Settings tab."""
@@ -665,6 +758,7 @@ class NetMapApp:
         self.status_count.config(text=f"Устройств: {len(result.devices)} | Рёбер: {len(result.edges)}")
 
         self._populate_devices(result)
+        self._populate_structure(result)
         self._render_topology(result)
         self._render_graph(result)
         self._show_raw(result)
@@ -1358,6 +1452,7 @@ class NetMapApp:
         appeared_ips = {d.get("ip") for d in diff.get("appeared", [])}
         disappeared_ips = {d.get("ip") for d in diff.get("disappeared", [])}
         self._populate_devices_monitor(new_result, appeared_ips, disappeared_ips)
+        self._populate_structure(new_result)
 
         # Update status
         self.status_label.config(
