@@ -28,7 +28,9 @@ class NetMapApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.version = self._load_version()
-        self._settings = {"monitor_interval": 60, "sound": True}
+        self._settings_dir = os.path.dirname(os.path.abspath(__file__))
+        self._settings_file = os.path.join(self._settings_dir, "netmap_settings.json")
+        self._settings = self._load_settings()
         self._monitoring = False
         self._monitor_after_id = None
         self._merge_scan = False
@@ -59,6 +61,18 @@ class NetMapApp:
             if p and os.path.exists(p):
                 return open(p).read().strip()
         return "1.0.0"
+
+    def _load_settings(self) -> dict:
+        """Загрузить настройки из JSON-файла (с дефолтами)."""
+        defaults = {"monitor_interval": 60, "sound": True, "snmp_community": "public"}
+        try:
+            if os.path.exists(self._settings_file):
+                with open(self._settings_file, 'r') as f:
+                    saved = json.load(f)
+                defaults.update(saved)
+        except Exception:
+            pass
+        return defaults
 
     # ── Style ───────────────────────────────────────────────────
 
@@ -372,6 +386,15 @@ class NetMapApp:
         ttk.Checkbutton(monitor_frame, text="Звук при изменениях",
                        variable=self.sound_var).grid(row=1, column=0, columnspan=2, sticky="w", **pad)
 
+        # SNMP section
+        snmp_frame = ttk.LabelFrame(frame, text="SNMP", padding=10)
+        snmp_frame.pack(fill=tk.X, padx=10, pady=(10, 5))
+
+        ttk.Label(snmp_frame, text="Community:").grid(row=0, column=0, sticky="w", **pad)
+        self.snmp_community_var = tk.StringVar(value=self._settings.get("snmp_community", "public"))
+        ttk.Entry(snmp_frame, textvariable=self.snmp_community_var, width=20).grid(row=0, column=1, sticky="w", **pad)
+        ttk.Label(snmp_frame, text="(по умолчанию: public)", foreground="#888888").grid(row=0, column=2, sticky="w", **pad)
+
         ttk.Button(monitor_frame, text="Сохранить настройки",
                   command=self._save_settings).grid(row=2, column=0, columnspan=2, pady=(8, 0))
 
@@ -393,8 +416,17 @@ class NetMapApp:
     def _save_settings(self):
         self._settings["monitor_interval"] = self.monitor_interval_var.get()
         self._settings["sound"] = self.sound_var.get()
+        self._settings["snmp_community"] = self.snmp_community_var.get().strip() or "public"
+        # Persist to disk
+        try:
+            with open(self._settings_file, 'w') as f:
+                json.dump(self._settings, f, indent=2)
+        except Exception as e:
+            self._log(f"Ошибка сохранения настроек: {e}")
+            return
         self._log(f"Настройки сохранены: интервал={self._settings['monitor_interval']}с, "
-                  f"звук={'вкл' if self._settings['sound'] else 'выкл'}")
+                  f"звук={'вкл' if self._settings['sound'] else 'выкл'}, "
+                  f"SNMP={self._settings['snmp_community']}")
         if self._monitoring:
             self.monitor_indicator.config(
                 text=f"🟢 Мониторинг ({self._settings['monitor_interval']}с)"
@@ -585,7 +617,10 @@ class NetMapApp:
 
         def scan_worker():
             try:
-                result = scan_funcs[mode](subnet, callbacks)
+                kwargs = {}
+                if mode == "topology":
+                    kwargs["community"] = self._settings.get("snmp_community", "public")
+                result = scan_funcs[mode](subnet, callbacks, **kwargs)
                 self.root.after(0, lambda: self._on_scan_done(result))
             except Exception as e:
                 self.root.after(0, lambda: self._on_scan_error(str(e)))

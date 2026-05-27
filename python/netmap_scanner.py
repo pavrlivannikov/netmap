@@ -1083,7 +1083,7 @@ def scan_deep(subnet: str, callbacks=None) -> ScanResult:
     return result
 
 
-def scan_topology(subnet: str, callbacks=None) -> ScanResult:
+def scan_topology(subnet: str, callbacks=None, community: str = "public") -> ScanResult:
     """Топология: ARP + SNMP (LLDP + FDB) → реальные связи."""
     if callbacks:
         callbacks.on_progress("ARP scan...", 5)
@@ -1101,7 +1101,7 @@ def scan_topology(subnet: str, callbacks=None) -> ScanResult:
         try:
             if snmp_client is None:
                 from netmap_snmp import SnmpClient
-                snmp_client = SnmpClient(timeout=0.5)
+                snmp_client = SnmpClient(community=community, timeout=0.5)
             if snmp_client.probe(d.ip):
                 info = snmp_client.discover(d.ip)
                 if info.sys_name:
