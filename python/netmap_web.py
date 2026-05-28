@@ -29,6 +29,10 @@ from netmap_config import config
 from netmap_alerts import TelegramChannel
 from netmap_export import export_json, export_csv, export_topology_dot, export_markdown
 from netmap_tree import build_tree, get_stats, tree_to_dict
+from netmap_multicast import (
+    analyze_multicast, classify_device, get_network_fingerprint,
+    is_multicast_ip, is_multicast_mac,
+)
 
 app = FastAPI(title="NetMap Web", version="1.0.0")
 
@@ -61,6 +65,7 @@ def _serialize_scan_result(result: ScanResult) -> dict:
     """Convert ScanResult to JSON-serializable dict."""
     devices = []
     for d in result.devices:
+        mc_info = classify_device(d.ip, d.mac)
         devices.append({
             "ip": d.ip,
             "mac": d.mac,
@@ -71,6 +76,9 @@ def _serialize_scan_result(result: ScanResult) -> dict:
             "status": d.status,
             "first_seen": d.first_seen,
             "last_seen": d.last_seen,
+            "is_multicast": mc_info["is_multicast"],
+            "multicast_protocol": mc_info["protocol"],
+            "multicast_description": mc_info["description"],
             "ports": [
                 {
                     "port": p.port,
@@ -196,6 +204,40 @@ async def api_devices():
         "scan_time": data["scan_time"],
         "network": data["network"],
         "devices": data["devices"],
+    }
+
+
+# ── API: Multicast ────────────────────────────────────────────────
+
+@app.get("/api/multicast")
+async def api_multicast():
+    """Multicast-анализ последнего скана."""
+    if _scan_state["last_result"] is None:
+        return {
+            "total_multicast": 0,
+            "unique_ips": 0,
+            "detected_services": [],
+            "entries": [],
+            "fingerprint": "No scan data",
+            "fingerprint_tags": [],
+        }
+
+    analysis = analyze_multicast(_scan_state["last_result"].devices)
+    return {
+        "total_multicast": analysis.total_multicast,
+        "unique_ips": analysis.unique_ips,
+        "detected_services": analysis.detected_services,
+        "fingerprint": analysis.fingerprint,
+        "fingerprint_tags": analysis.fingerprint_tags,
+        "entries": [
+            {
+                "ip": e.ip,
+                "protocol": e.protocol,
+                "description": e.description,
+                "mac": e.mac,
+            }
+            for e in analysis.entries
+        ],
     }
 
 
