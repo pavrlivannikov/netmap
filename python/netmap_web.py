@@ -16,7 +16,7 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Query, BackgroundTasks, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
 
 from netmap_scanner import (
@@ -27,6 +27,8 @@ from netmap_scanner import (
 from netmap_snmp import SnmpClient
 from netmap_config import config
 from netmap_alerts import TelegramChannel
+from netmap_export import export_json, export_csv, export_topology_dot, export_markdown
+from netmap_tree import build_tree, get_stats, tree_to_dict
 
 app = FastAPI(title="NetMap Web", version="1.0.0")
 
@@ -213,6 +215,30 @@ async def api_topology():
     }
 
 
+# ── API: Tree ────────────────────────────────────────────────────
+
+@app.get("/api/tree")
+async def api_tree():
+    """Дерево устройств, сгруппированное по подсетям."""
+    if _scan_state["last_result"] is None:
+        return {"tree": None, "stats": None, "scan_time": "", "network": ""}
+
+    data = _serialize_scan_result(_scan_state["last_result"])
+    devices = data["devices"]
+    subnet = data["network"] or _scan_state["last_scan_subnet"] or "0.0.0.0/0"
+
+    root = build_tree(devices, subnet)
+    tree = tree_to_dict(root)
+    stats = get_stats(root)
+
+    return {
+        "tree": tree,
+        "stats": stats,
+        "scan_time": data["scan_time"],
+        "network": data["network"],
+    }
+
+
 # ── API: Networks ────────────────────────────────────────────────
 
 @app.get("/api/networks")
@@ -272,6 +298,76 @@ async def api_fdb(
         }
     except Exception as e:
         return {"device_ip": device_ip, "entries": [], "error": str(e)}
+
+
+# ── API: Export ─────────────────────────────────────────────────
+
+def _last_result_or_404():
+    """Return last scan result or raise 404."""
+    result = _scan_state.get("last_result")
+    if result is None:
+        raise HTTPException(404, "No scan results yet. Run a scan first.")
+    return result
+
+
+@app.get("/api/export/json")
+async def api_export_json():
+    """Download last scan result as JSON."""
+    import tempfile
+    result = _last_result_or_404()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+        tmp_path = f.name
+    try:
+        out = export_json(result, tmp_path)
+        return FileResponse(out, media_type="application/json",
+                            filename="netmap_export.json")
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.get("/api/export/csv")
+async def api_export_csv():
+    """Download last scan result as CSV."""
+    import tempfile
+    result = _last_result_or_404()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, encoding="utf-8") as f:
+        tmp_path = f.name
+    try:
+        out = export_csv(result, tmp_path)
+        return FileResponse(out, media_type="text/csv",
+                            filename="netmap_export.csv")
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.get("/api/export/dot")
+async def api_export_dot():
+    """Download topology as Graphviz DOT."""
+    import tempfile
+    result = _last_result_or_404()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".dot", delete=False, encoding="utf-8") as f:
+        tmp_path = f.name
+    try:
+        out = export_topology_dot(result, tmp_path)
+        return FileResponse(out, media_type="text/vnd.graphviz",
+                            filename="netmap_topology.dot")
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.get("/api/export/md")
+async def api_export_md():
+    """Download device list as Markdown."""
+    import tempfile
+    result = _last_result_or_404()
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        tmp_path = f.name
+    try:
+        out = export_markdown(result, tmp_path)
+        return FileResponse(out, media_type="text/markdown",
+                            filename="netmap_report.md")
+    finally:
+        os.unlink(tmp_path)
 
 
 # ── Token masking helper ────────────────────────────────────────
@@ -349,7 +445,6 @@ if os.path.isdir(static_dir):
 @app.get("/")
 async def root():
     """Redirect to index.html."""
-    from fastapi.responses import FileResponse
     return FileResponse(os.path.join(static_dir, "index.html"))
 
 

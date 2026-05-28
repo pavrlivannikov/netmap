@@ -1,0 +1,23 @@
+[Unit]
+Description=NetMap Network Monitor — periodic ARP scan + change detection
+Documentation=https://github.com/user/netmap
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/projects/netmap/deploy/netmap-monitor.sh
+WorkingDirectory=%h/projects/netmap
+Nice=19
+IOSchedulingClass=idle
+CPUQuota=30%
+MemoryMax=128M
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=netmap-monitor
+
+# Prevent stampeding on boot: wait a random delay up to 120s
+ExecStartPre=/bin/bash -c 'sleep $(( RANDOM %% 120 ))'
+
+[Install]
+WantedBy=default.target

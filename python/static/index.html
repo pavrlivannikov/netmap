@@ -33,6 +33,48 @@ body {
   display: flex; flex-direction: column;
 }
 
+/* ── Export dropdown ──────────────────────────── */
+.export-dropdown {
+  position: relative; display: inline-block;
+  flex-shrink: 0;
+}
+.export-btn {
+  cursor: pointer;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 14px;
+  font-size: 12px;
+  border-radius: 6px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+.export-menu {
+  display: none;
+  position: absolute;
+  top: 100%; right: 0;
+  margin-top: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 160px;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.export-menu.open { display: block; }
+.export-menu a {
+  display: block;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.export-menu a:last-child { border-bottom: none; }
+.export-menu a:hover { background: rgba(88,166,255,0.08); color: var(--accent); }
+
 /* ── Header ─────────────────────────────────────── */
 .header {
   display: flex; align-items: center; gap: 10px;
@@ -345,6 +387,64 @@ body {
 }
 .settings-toast.success { color: var(--green); background: rgba(63,185,80,0.1); }
 .settings-toast.error { color: var(--red); background: rgba(248,81,73,0.1); }
+
+/* ── Tree View ─────────────────────────────────── */
+.tree-wrap {
+  flex: 1; overflow: auto; padding: 12px 14px;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+}
+.tree-node { user-select: none; }
+.tree-node-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 6px; border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.tree-node-header:hover { background: rgba(88,166,255,0.08); }
+.tree-node-header .toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; font-size: 10px;
+  flex-shrink: 0;
+  color: var(--text-dim);
+  transition: transform 0.15s;
+}
+.tree-node-header .toggle.expanded { transform: rotate(90deg); }
+.tree-node-header .toggle.leaf { visibility: hidden; }
+.tree-node-header .icon { flex-shrink: 0; font-size: 14px; }
+.tree-node-header .name { color: var(--text); }
+.tree-node-header .name.network { color: var(--accent); font-weight: 700; }
+.tree-node-header .name.subnet { color: var(--purple); font-weight: 600; }
+.tree-node-header .name.device { color: var(--text); }
+.tree-node-header .badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 8px;
+  font-weight: 600; flex-shrink: 0;
+}
+.tree-node-header .badge.online { background: rgba(63,185,80,0.15); color: var(--green); }
+.tree-node-header .badge.offline { background: rgba(248,81,73,0.15); color: var(--red); }
+.tree-node-header .badge.total { background: rgba(88,166,255,0.12); color: var(--accent); }
+.tree-node-header .detail {
+  font-size: 11px; color: var(--text-dim);
+  margin-left: 4px; flex-shrink: 0;
+}
+.tree-node-children {
+  padding-left: 20px;
+}
+.tree-node-children.collapsed { display: none; }
+
+/* Tree stats bar */
+.tree-stats {
+  display: flex; gap: 14px; padding: 8px 14px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.tree-stats .stat-item {
+  display: flex; align-items: center; gap: 4px;
+  color: var(--text-dim);
+}
+.tree-stats .stat-value { color: var(--text); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -366,12 +466,22 @@ body {
   </div>
   <div class="progress-bar"><div class="fill" id="progressFill" style="width:0%"></div></div>
   <div class="progress-text" id="progressText">Ready</div>
+  <div class="export-dropdown">
+    <button class="export-btn" onclick="toggleExportMenu()">📥 Export ▾</button>
+    <div class="export-menu" id="exportMenu">
+      <a onclick="downloadExport('json')">📄 JSON</a>
+      <a onclick="downloadExport('csv')">📊 CSV</a>
+      <a onclick="downloadExport('dot')">🔗 Graphviz DOT</a>
+      <a onclick="downloadExport('md')">📝 Markdown</a>
+    </div>
+  </div>
 </div>
 
 <!-- ── Tabs ──────────────────────────────────────────────── -->
 <div class="tabs">
   <button class="tab-btn active" data-tab="devices">💻 Devices</button>
   <button class="tab-btn" data-tab="topology">🔗 Topology</button>
+  <button class="tab-btn" data-tab="tree">🗂 Структура</button>
   <button class="tab-btn" data-tab="fdb">📋 FDB</button>
   <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
 </div>
@@ -400,6 +510,17 @@ body {
         </thead>
         <tbody id="deviceBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Tree Tab -->
+  <div class="tab-panel" id="panel-tree">
+    <div class="tree-stats" id="treeStats"></div>
+    <div class="tree-wrap" id="treeWrap">
+      <div class="empty-state">
+        <div class="icon">🗂</div>
+        <div>Run a scan to see network structure</div>
+      </div>
     </div>
   </div>
 
@@ -498,6 +619,8 @@ body {
 let state = {
   devices: [],
   edges: [],
+  treeData: null,
+  treeStats: null,
   scanRunning: false,
   scanPoller: null,
   devSortCol: 'ip',
@@ -517,6 +640,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
     if (btn.dataset.tab === 'topology') renderTopology();
+    if (btn.dataset.tab === 'tree') { fetchTree(); }
     if (btn.dataset.tab === 'fdb') updateFDBDeviceSelect();
   });
 });
@@ -567,6 +691,7 @@ async function pollScan() {
     // Auto-fetch results
     fetchDevices();
     fetchTopology();
+    fetchTree();
   }
 }
 
@@ -591,6 +716,8 @@ async function fetchTopology() {
   if (document.getElementById('panel-topology').classList.contains('active')) {
     renderTopology();
   }
+  // Also refresh tree data
+  fetchTree();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -922,6 +1049,129 @@ function renderFDB() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Tree View
+// ═══════════════════════════════════════════════════════════
+async function fetchTree() {
+  try {
+    const resp = await fetch('/api/tree');
+    const data = await resp.json();
+    state.treeData = data.tree;
+    state.treeStats = data.stats;
+    renderTree();
+  } catch (e) {
+    console.error('Fetch tree failed:', e);
+  }
+}
+
+function renderTree() {
+  const wrap = document.getElementById('treeWrap');
+  const statsEl = document.getElementById('treeStats');
+
+  if (!state.treeData || !state.treeData.children || state.treeData.children.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">🗂</div><div>No devices in scan data</div></div>`;
+    statsEl.innerHTML = '';
+    return;
+  }
+
+  // Render stats bar
+  const s = state.treeStats || {};
+  let typeBadges = '';
+  if (s.by_type) {
+    const icons = {
+      'router': '📡', 'switch': '🔀', 'access-point': '📶', 'firewall': '🛡️',
+      'printer': '🖨️', 'camera': '📷', 'phone': '📱', 'laptop': '💻',
+      'desktop': '🖥️', 'server': '🗄️', 'network-device': '🔌', 'iot': '🔧',
+      'virtual': '☁️', 'unknown': '❓'
+    };
+    const entries = Object.entries(s.by_type).slice(0, 6);
+    typeBadges = entries.map(([t, c]) =>
+      `<span class="stat-item">${icons[t] || '❓'} ${t}: <span class="stat-value">${c}</span></span>`
+    ).join('');
+  }
+
+  statsEl.innerHTML = `
+    <span class="stat-item">🟢 Online: <span class="stat-value">${s.online || 0}</span></span>
+    <span class="stat-item">🔴 Offline: <span class="stat-value">${s.offline || 0}</span></span>
+    <span class="stat-item">📦 Total: <span class="stat-value">${s.total_devices || 0}</span></span>
+    ${typeBadges ? '<span style="color:var(--border);margin:0 4px">|</span>' + typeBadges : ''}
+  `;
+
+  // Render tree
+  wrap.innerHTML = renderTreeNode(state.treeData, 0);
+}
+
+function renderTreeNode(node, depth) {
+  if (!node) return '';
+
+  const hasChildren = node.children && node.children.length > 0;
+  const isLeaf = !hasChildren || depth > 3;
+  const d = node.data || {};
+  const type = node.type || 'device';
+
+  let header = '';
+
+  if (type === 'network') {
+    // Root network node
+    header = `
+      <div class="tree-node-header" onclick="toggleTreeNode(this)">
+        <span class="toggle ${isLeaf ? 'leaf' : 'expanded'}">▶</span>
+        <span class="icon">🌐</span>
+        <span class="name network">${esc(node.name)}</span>
+        <span class="badge total">${d.total_devices || 0} devices</span>
+        <span class="badge online">${d.subnet_count || 0} subnets</span>
+      </div>`;
+
+  } else if (type === 'subnet') {
+    const label = d.label || node.name;
+    header = `
+      <div class="tree-node-header" onclick="toggleTreeNode(this)">
+        <span class="toggle ${isLeaf ? 'leaf' : 'expanded'}">▶</span>
+        <span class="icon">📁</span>
+        <span class="name subnet">${esc(label)}</span>
+        <span class="badge online">🟢 ${d.online || 0}</span>
+        ${d.offline > 0 ? `<span class="badge offline">🔴 ${d.offline}</span>` : ''}
+        <span class="detail">${esc(d.cidr || '')}</span>
+      </div>`;
+
+  } else {
+    // device
+    const icon = d.icon || '❓';
+    const statusIcon = d.status_icon || '🟢';
+    const vendor = d.vendor || '';
+    const mac = d.mac || '';
+    header = `
+      <div class="tree-node-header" style="cursor:default">
+        <span class="toggle leaf">▶</span>
+        <span class="icon">${icon}</span>
+        <span class="name device">${statusIcon} ${esc(node.name)}</span>
+        ${vendor ? `<span class="detail">${esc(vendor)}</span>` : ''}
+        ${mac ? `<span class="detail" style="font-size:10px;opacity:0.6">${esc(mac)}</span>` : ''}
+      </div>`;
+  }
+
+  let childrenHtml = '';
+  if (hasChildren && !isLeaf) {
+    childrenHtml = '<div class="tree-node-children">' +
+      node.children.map(c => renderTreeNode(c, depth + 1)).join('') +
+      '</div>';
+  }
+
+  return `<div class="tree-node">${header}${childrenHtml}</div>`;
+}
+
+function toggleTreeNode(header) {
+  const toggle = header.querySelector('.toggle');
+  if (toggle.classList.contains('leaf')) return;
+
+  const node = header.parentElement;
+  const children = node.querySelector('.tree-node-children');
+  if (!children) return;
+
+  const isCollapsed = children.classList.toggle('collapsed');
+  toggle.classList.toggle('expanded', !isCollapsed);
+}
+
+// ═══════════════════════════════════════════════════════════
 // Settings
 // ═══════════════════════════════════════════════════════════
 async function loadSettings() {
@@ -1009,10 +1259,56 @@ async function testTelegram() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Export
+// ═══════════════════════════════════════════════════════════
+function toggleExportMenu() {
+  const menu = document.getElementById('exportMenu');
+  menu.classList.toggle('open');
+}
+
+// Close export menu when clicking outside
+window.addEventListener('click', function(e) {
+  const dd = document.querySelector('.export-dropdown');
+  if (dd && !dd.contains(e.target)) {
+    document.getElementById('exportMenu').classList.remove('open');
+  }
+});
+
+function downloadExport(format) {
+  document.getElementById('exportMenu').classList.remove('open');
+
+  const endpoints = {
+    json: '/api/export/json',
+    csv:  '/api/export/csv',
+    dot:  '/api/export/dot',
+    md:   '/api/export/md',
+  };
+
+  const ext = {
+    json: 'json',
+    csv:  'csv',
+    dot:  'dot',
+    md:   'md',
+  };
+
+  const url = endpoints[format];
+  if (!url) return;
+
+  // Use a hidden anchor click for reliable browser download
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'netmap_export.' + ext[format];
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ═══════════════════════════════════════════════════════════
 // Initial load
 // ═══════════════════════════════════════════════════════════
 fetchDevices();
 fetchTopology();
+fetchTree();
 loadSettings();
 </script>
 </body>
