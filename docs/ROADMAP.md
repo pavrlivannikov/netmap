@@ -1,49 +1,56 @@
-# NetMap — Roadmap
+# NetMap — Roadmap (май 2026)
 
-## v0.1 — Прототип (май 2026) ✅ DONE
+## v0.1 — Прототип ✅ DONE
 - [x] Документация и спецификация
-- [x] Структура проекта (Tauri + Svelte + Cytoscape.js)
+- [x] Структура проекта
 - [x] SVG-иконки (8 типов устройств)
-- [x] Базовый UI (Toolbar, Graph, DevicePanel, StatusBar)
-- [x] Rust scanner (ARP, ICMP, TCP port check)
+- [x] ARP-скан, ICMP ping, TCP port check
 - [x] OUI-парсер (производитель по MAC)
-- [x] Сборка под Linux (AppImage, deb, rpm)
-- [x] PowerShell CLI (Windows — работает без установки)
-- [x] Сборка под Windows (installer .exe)
+- [x] PowerShell CLI (Windows)
 
-## v0.2 — Сетевые протоколы (май 2026) ✅ DONE
-- [x] SNMP discovery (v1/v2c, community public)
-- [x] SNMP модуль на Rust (snmp.rs — ручная реализация)
+## v0.2 — Сетевые протоколы ✅ DONE
+- [x] SNMP v2c discovery (sysName, sysDescr)
 - [x] ARP + TCP/UDP + SNMP сканирование
-- [x] UDP параллельный скан всей подсети (/21)
-- [x] Автоопределение сети (ipconfig/ip route)
+- [x] Автоопределение сети
 - [x] Сохранение результатов в JSON
-- [x] Обнаружение 48 SNMP-устройств в сети /21
+- [x] SSH FDB: Cisco IOS, TP-Link, MikroTik
+- [x] Asyncio-сканер (5-8× быстрее потоков)
 
-## v0.3 — Мониторинг (июнь 2026)
-- [x] Мониторинг изменений (кто пропал/появился)
+## v0.3 — Мониторинг 🟡 В ПРОЦЕССЕ
+- [x] Мониторинг изменений (diff: появился/пропал/изменился)
 - [x] Сохранение истории состояний
-- [ ] SNMP LLDP-топология (соседи коммутаторов)
-- [ ] MAC-таблица коммутаторов → карта портов
-- [ ] Периодический авто-запуск (Task Scheduler / systemd)
+- [x] Web-интерфейс (FastAPI + Svelte)
+- [x] Интерактивный граф в GUI и Web
+- [ ] SNMP LLDP-топология (BFS-обход соседей)
+- [ ] FDB/MAC-таблица → карта портов
+- [ ] Периодический авто-запуск (cron/systemd)
 - [ ] Алерты при изменениях (Telegram/email)
 
-## v0.4 — Топология и граф (июнь 2026)
-- [ ] LLDP/CDP обход через SNMP (библиотека snmp2)
+## v0.4 — Топология и граф
+- [x] Web-интерфейс (FastAPI + Svelte)
+- [x] GUI-граф (tkinter canvas: drag, zoom, pan)
+- [ ] Интерактивный граф в Web (canvas/D3)
+- [ ] LLDP/CDP-обход через SNMP
 - [ ] Автоматическое построение топологии
-- [ ] Интерактивный граф связей в GUI
 - [ ] Группировка устройств по локациям
-- [ ] Визуализация: коммутаторы → конечные устройства
 
 ## v0.5 — Продвинутые возможности
-- [ ] SNMP v3 поддержка
+- [ ] SNMP v3 (аутентификация и шифрование)
 - [ ] nmap интеграция (OS detection)
-- [ ] Беспроводные сети (Wi-Fi survey)
+- [ ] Wi-Fi survey (беспроводные сети)
 - [ ] Экспорт топологии (PNG, SVG, draw.io)
+- [ ] Cable Health:
+  - [ ] Cable diagnostics через SNMP/SSH (MikroTik, Cisco, TP-Link)
+  - [ ] TDR-тест: длина кабеля, обрыв, КЗ
+  - [ ] SFP DOM: температура, напряжение, RX/TX power
+  - [ ] CRC-ошибки и коллизии (IF-MIB + dot3 MIB)
+  - [ ] Дуплекс-mismatch детектор
+  - [ ] Port Health Score (0-100)
 
 ## v1.0 — Релиз
-- [ ] Кроссплатформенный CLI (Rust)
+- [ ] Кроссплатформенный CLI (Python, упакованный в exe/bin)
 - [ ] Web-интерфейс (Svelte)
 - [ ] Пакеты: Windows (.msi), Linux (.deb/.AppImage), macOS
 - [ ] Автообновление
 - [ ] Документация и справка
+- [ ] SQLite — история сканов

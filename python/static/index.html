@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NetMap</title>
+<style>
+/* ── Base & Reset ─────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --bg-input: #21262d;
+  --border: #30363d;
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --green: #3fb950;
+  --red: #f85149;
+  --orange: #d2991d;
+  --purple: #a371f7;
+  --cyan: #39d2c0;
+}
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────────── */
+.header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.header .logo {
+  font-weight: 700; font-size: 18px;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+.header .logo span { color: var(--green); }
+
+/* Controls in header */
+.controls {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; margin-left: 20px;
+}
+.controls input, .controls select, .controls button {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+}
+.controls input:focus, .controls select:focus {
+  border-color: var(--accent);
+}
+.controls select {
+  cursor: pointer;
+}
+.controls button {
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+  padding: 5px 14px;
+}
+.controls button:hover { background: var(--accent-hover); }
+.controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+.controls button.stop {
+  background: var(--red); border-color: var(--red);
+}
+
+.progress-bar {
+  width: 120px; height: 4px;
+  background: var(--bg-input);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.progress-bar .fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+  border-radius: 2px;
+}
+.progress-text {
+  font-size: 11px; color: var(--text-dim);
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* ── Tabs ───────────────────────────────────────── */
+.tabs {
+  display: flex; gap: 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.tab-btn {
+  padding: 8px 20px;
+  background: transparent;
+  border: none; border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 13px; font-family: inherit;
+  transition: all 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Main Content ───────────────────────────────── */
+.main {
+  flex: 1; overflow: auto;
+  position: relative;
+}
+.tab-panel { display: none; height: 100%; }
+.tab-panel.active { display: flex; flex-direction: column; }
+
+/* ── Devices Table ─────────────────────────────── */
+.device-table-wrap { flex: 1; overflow: auto; }
+.device-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.device-table th, .device-table td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.device-table th {
+  background: var(--bg-panel);
+  position: sticky; top: 0; z-index: 2;
+  color: var(--text-dim);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+.device-table th:hover { color: var(--text); }
+.device-table th.sorted { color: var(--accent); }
+.device-table th .sort-arrow { margin-left: 4px; font-size: 10px; }
+.device-table tr:hover { background: rgba(88, 166, 255, 0.05); }
+.device-table .status-online { color: var(--green); font-weight: 600; }
+.device-table .status-offline { color: var(--red); }
+.device-table .ports-cell { max-width: 200px; white-space: normal; font-size: 11px; color: var(--text-dim); }
+.device-table .mac-cell { font-family: monospace; font-size: 11px; }
+
+.filter-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.filter-row input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  outline: none;
+  width: 240px;
+  font-family: inherit;
+}
+.filter-row input:focus { border-color: var(--accent); }
+.filter-row .count { color: var(--text-dim); font-size: 12px; }
+
+/* ── Topology Canvas ────────────────────────────── */
+.topo-wrap {
+  flex: 1; overflow: hidden; position: relative;
+  background: var(--bg);
+  cursor: default;
+}
+.topo-wrap canvas {
+  display: block;
+  width: 100%; height: 100%;
+}
+.topo-legend {
+  position: absolute;
+  bottom: 12px; right: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.topo-legend .dot {
+  display: inline-block; width: 8px; height: 8px;
+  border-radius: 50%; margin-right: 4px;
+}
+.topo-legend .dot.gw { background: var(--orange); }
+.topo-legend .dot.switch { background: var(--accent); }
+.topo-legend .dot.other { background: var(--green); }
+
+/* ── FDB Tab ────────────────────────────────────── */
+.fdb-controls {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.fdb-controls select, .fdb-controls button {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+.fdb-controls button {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.fdb-controls button:hover { background: var(--accent-hover); }
+.fdb-controls button:disabled { opacity: 0.5; cursor: not-allowed; }
+.fdb-controls .error { color: var(--red); font-size: 12px; margin-left: auto; }
+.fdb-table-wrap { flex: 1; overflow: auto; }
+.fdb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.fdb-table th, .fdb-table td {
+  padding: 6px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.fdb-table th {
+  background: var(--bg-panel);
+  position: sticky; top: 0; z-index: 2;
+  color: var(--text-dim);
+  font-weight: 600;
+  cursor: pointer;
+}
+.fdb-table th:hover { color: var(--text); }
+.fdb-table th.sorted { color: var(--accent); }
+.fdb-table tr:hover { background: rgba(88, 166, 255, 0.05); }
+.fdb-table .mac-cell { font-family: monospace; }
+
+/* ── Empty state ────────────────────────────────── */
+.empty-state {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ───────────────────────────────────────────── -->
+<div class="header">
+  <div class="logo">Net<span>Map</span></div>
+  <div class="controls">
+    <input type="text" id="subnet" value="192.168.1.0/24" placeholder="Subnet (CIDR)">
+    <select id="scanType">
+      <option value="quick">Quick</option>
+      <option value="discover" selected>Discover</option>
+      <option value="deep">Deep</option>
+      <option value="topology">Topology</option>
+    </select>
+    <input type="text" id="community" value="public" placeholder="SNMP community" style="width:90px">
+    <button id="btnScan" onclick="startScan()">▶ Scan</button>
+    <button id="btnStop" class="stop" onclick="stopScan()" style="display:none">⬛ Stop</button>
+  </div>
+  <div class="progress-bar"><div class="fill" id="progressFill" style="width:0%"></div></div>
+  <div class="progress-text" id="progressText">Ready</div>
+</div>
+
+<!-- ── Tabs ──────────────────────────────────────────────── -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="devices">💻 Devices</button>
+  <button class="tab-btn" data-tab="topology">🔗 Topology</button>
+  <button class="tab-btn" data-tab="fdb">📋 FDB</button>
+</div>
+
+<!-- ── Main ──────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Devices Tab -->
+  <div class="tab-panel active" id="panel-devices">
+    <div class="filter-row">
+      <input type="text" id="filterInput" placeholder="Filter by IP, MAC, hostname, vendor..." oninput="renderDevices()">
+      <span class="count" id="deviceCount"></span>
+    </div>
+    <div class="device-table-wrap">
+      <table class="device-table">
+        <thead>
+          <tr>
+            <th data-col="ip" onclick="sortDevices('ip')">IP</th>
+            <th data-col="mac" onclick="sortDevices('mac')">MAC</th>
+            <th data-col="vendor" onclick="sortDevices('vendor')">Vendor</th>
+            <th data-col="hostname" onclick="sortDevices('hostname')">Hostname</th>
+            <th data-col="os" onclick="sortDevices('os')">OS</th>
+            <th data-col="ports" onclick="sortDevices('ports')">Ports</th>
+            <th data-col="status" onclick="sortDevices('status')">Status</th>
+          </tr>
+        </thead>
+        <tbody id="deviceBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Topology Tab -->
+  <div class="tab-panel" id="panel-topology">
+    <div class="topo-wrap" id="topoWrap">
+      <canvas id="topoCanvas"></canvas>
+      <div class="topo-legend">
+        <div><span class="dot gw"></span>Gateway</div>
+        <div><span class="dot switch"></span>Switch / Network</div>
+        <div><span class="dot other"></span>Host / Other</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FDB Tab -->
+  <div class="tab-panel" id="panel-fdb">
+    <div class="fdb-controls">
+      <span style="color:var(--text-dim)">Device:</span>
+      <select id="fdbDeviceSelect">
+        <option value="">-- Select device --</option>
+      </select>
+      <input type="text" id="fdbCommunity" value="public" placeholder="community" style="width:80px;background:var(--bg-input);border:1px solid var(--border);color:var(--text);padding:5px 10px;font-size:12px;border-radius:6px;font-family:inherit;">
+      <button onclick="fetchFDB()">Fetch FDB</button>
+      <span class="error" id="fdbError"></span>
+      <span class="count" id="fdbCount" style="margin-left:auto"></span>
+    </div>
+    <div class="fdb-table-wrap">
+      <table class="fdb-table">
+        <thead>
+          <tr>
+            <th data-col="vlan" onclick="sortFDB('vlan')">VLAN</th>
+            <th data-col="mac" onclick="sortFDB('mac')">MAC</th>
+            <th data-col="port" onclick="sortFDB('port')">Port</th>
+          </tr>
+        </thead>
+        <tbody id="fdbBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// State
+// ═══════════════════════════════════════════════════════════
+let state = {
+  devices: [],
+  edges: [],
+  scanRunning: false,
+  scanPoller: null,
+  devSortCol: 'ip',
+  devSortAsc: true,
+  fdbSortCol: 'vlan',
+  fdbSortAsc: true,
+  fdbEntries: [],
+};
+
+// ═══════════════════════════════════════════════════════════
+// Tabs
+// ═══════════════════════════════════════════════════════════
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'topology') renderTopology();
+    if (btn.dataset.tab === 'fdb') updateFDBDeviceSelect();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// Scan
+// ═══════════════════════════════════════════════════════════
+async function startScan() {
+  const subnet = document.getElementById('subnet').value.trim();
+  const scanType = document.getElementById('scanType').value;
+  const community = document.getElementById('community').value.trim() || 'public';
+  if (!subnet) return;
+
+  const resp = await fetch(`/api/scan?subnet=${encodeURIComponent(subnet)}&scan_type=${scanType}&community=${encodeURIComponent(community)}`, { method: 'POST' });
+  const data = await resp.json();
+  if (!data.ok) { alert(data.error); return; }
+
+  state.scanRunning = true;
+  document.getElementById('btnScan').style.display = 'none';
+  document.getElementById('btnStop').style.display = '';
+  state.scanPoller = setInterval(pollScan, 500);
+}
+
+function stopScan() {
+  // Scan runs in thread pool; we can't easily kill it, but we stop polling
+  state.scanRunning = false;
+  clearInterval(state.scanPoller);
+  state.scanPoller = null;
+  document.getElementById('btnScan').style.display = '';
+  document.getElementById('btnStop').style.display = 'none';
+  document.getElementById('progressText').textContent = 'Stopped';
+}
+
+async function pollScan() {
+  const resp = await fetch('/api/scan/status');
+  const data = await resp.json();
+
+  document.getElementById('progressFill').style.width = data.progress_pct + '%';
+  document.getElementById('progressText').textContent = data.progress_msg;
+
+  if (!data.running) {
+    clearInterval(state.scanPoller);
+    state.scanPoller = null;
+    state.scanRunning = false;
+    document.getElementById('btnScan').style.display = '';
+    document.getElementById('btnStop').style.display = 'none';
+
+    // Auto-fetch results
+    fetchDevices();
+    fetchTopology();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Fetch Devices
+// ═══════════════════════════════════════════════════════════
+async function fetchDevices() {
+  const resp = await fetch('/api/devices');
+  const data = await resp.json();
+  state.devices = data.devices || [];
+  renderDevices();
+}
+
+async function fetchTopology() {
+  const resp = await fetch('/api/topology');
+  const data = await resp.json();
+  state.devices = data.devices || [];
+  state.edges = data.edges || [];
+  renderDevices(); // stay in sync
+  updateFDBDeviceSelect();
+  // Auto-render if topology tab active
+  if (document.getElementById('panel-topology').classList.contains('active')) {
+    renderTopology();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// Render Devices Table
+// ═══════════════════════════════════════════════════════════
+function sortDevices(col) {
+  if (state.devSortCol === col) {
+    state.devSortAsc = !state.devSortAsc;
+  } else {
+    state.devSortCol = col;
+    state.devSortAsc = true;
+  }
+  renderDevices();
+}
+
+function renderDevices() {
+  const filter = (document.getElementById('filterInput')?.value || '').toLowerCase();
+  let devs = [...state.devices];
+
+  // Filter
+  if (filter) {
+    devs = devs.filter(d =>
+      (d.ip || '').toLowerCase().includes(filter) ||
+      (d.mac || '').toLowerCase().includes(filter) ||
+      (d.hostname || '').toLowerCase().includes(filter) ||
+      (d.vendor || '').toLowerCase().includes(filter) ||
+      (d.os || '').toLowerCase().includes(filter)
+    );
+  }
+
+  // Sort
+  devs.sort((a, b) => {
+    let va = (a[state.devSortCol] ?? '').toString().toLowerCase();
+    let vb = (b[state.devSortCol] ?? '').toString().toLowerCase();
+    if (state.devSortCol === 'ports') {
+      va = (a.ports || []).length;
+      vb = (b.ports || []).length;
+      return state.devSortAsc ? va - vb : vb - va;
+    }
+    if (va < vb) return state.devSortAsc ? -1 : 1;
+    if (va > vb) return state.devSortAsc ? 1 : -1;
+    return 0;
+  });
+
+  // Highlight sort col
+  document.querySelectorAll('.device-table th').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.col === state.devSortCol);
+    const arrow = state.devSortCol === th.dataset.col ? (state.devSortAsc ? ' ▲' : ' ▼') : '';
+    th.querySelector('.sort-arrow').textContent = arrow;
+  });
+
+  // Render
+  const tbody = document.getElementById('deviceBody');
+  tbody.innerHTML = devs.map(d => {
+    let portsStr = (d.ports || []).map(p =>
+      `<span style="color:var(--green)">${p.port}</span>` +
+      (p.service ? `<span style="color:var(--text-dim)">/${p.service}</span>` : '')
+    ).join(', ');
+    return `<tr>
+      <td><span style="color:var(--accent)">${esc(d.ip)}</span></td>
+      <td class="mac-cell">${esc(d.mac || '—')}</td>
+      <td>${esc(d.vendor || '—')}</td>
+      <td>${esc(d.hostname || '—')}</td>
+      <td style="font-size:11px;color:var(--text-dim);max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${esc(d.os || '')}">${esc(trunc(d.os, 40))}</td>
+      <td class="ports-cell">${portsStr || '—'}</td>
+      <td class="status-${d.status === 'online' ? 'online' : 'offline'}">${esc(d.status)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('deviceCount').textContent = `${devs.length} device${devs.length !== 1 ? 's' : ''}`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function trunc(s, n) {
+  if (!s || s.length <= n) return s || '—';
+  return s.slice(0, n) + '…';
+}
+
+// ═══════════════════════════════════════════════════════════
+// Topology Canvas
+// ═══════════════════════════════════════════════════════════
+let topoNodes = [];
+let topoEdges = [];
+let dragNode = null;
+let dragOffX = 0, dragOffY = 0;
+let canvasDPI = 1;
+
+function initTopoNodes() {
+  const devs = state.devices;
+  const edges = state.edges;
+  topoNodes = devs.map((d, i) => ({
+    id: d.mac || d.ip,
+    ip: d.ip,
+    mac: d.mac,
+    hostname: d.hostname || '',
+    vendor: d.vendor || '',
+    deviceType: d.device_type || 'unknown',
+    x: 100 + (i % 5) * 180 + (Math.random() - 0.5) * 60,
+    y: 80 + Math.floor(i / 5) * 140 + (Math.random() - 0.5) * 40,
+  }));
+  topoEdges = edges.map(e => ({
+    source: e.source,
+    target: e.target,
+    edgeType: e.edge_type,
+  }));
+}
+
+function renderTopology() {
+  if (!state.devices.length) return;
+  if (topoNodes.length === 0) initTopoNodes();
+
+  const wrap = document.getElementById('topoWrap');
+  const canvas = document.getElementById('topoCanvas');
+  const rect = wrap.getBoundingClientRect();
+
+  canvasDPI = window.devicePixelRatio || 1;
+  canvas.width = rect.width * canvasDPI;
+  canvas.height = rect.height * canvasDPI;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(canvasDPI, canvasDPI);
+
+  const w = rect.width, h = rect.height;
+
+  // Background
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+
+  // Grid
+  ctx.strokeStyle = '#1c2333';
+  ctx.lineWidth = 0.5;
+  const gridSize = 40;
+  for (let x = 0; x < w; x += gridSize) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+  }
+  for (let y = 0; y < h; y += gridSize) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Build node map
+  const nodeMap = {};
+  topoNodes.forEach(n => { nodeMap[n.id] = n; });
+
+  // Draw edges
+  topoEdges.forEach(e => {
+    const src = nodeMap[e.source];
+    const tgt = nodeMap[e.target];
+    if (!src || !tgt) return;
+
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(src.x, src.y);
+    ctx.lineTo(tgt.x, tgt.y);
+    ctx.stroke();
+
+    // Edge label
+    if (e.edgeType !== 'direct') {
+      const mx = (src.x + tgt.x) / 2;
+      const my = (src.y + tgt.y) / 2;
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '9px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(trunc(e.edgeType, 20), mx, my - 4);
+    }
+  });
+
+  // Draw nodes
+  topoNodes.forEach(n => {
+    const color = n.deviceType === 'network-device' ? '#58a6ff' :
+                  (n.id.includes('.1') || n.id.includes('.254')) ? '#d2991d' : '#3fb950';
+    const radius = n.deviceType === 'network-device' ? 22 : 16;
+
+    // Glow
+    const glow = ctx.createRadialGradient(n.x, n.y, radius * 0.5, n.x, n.y, radius * 1.6);
+    glow.addColorStop(0, color + '40');
+    glow.addColorStop(1, 'transparent');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(n.x, n.y, radius * 1.6, 0, Math.PI * 2); ctx.fill();
+
+    // Circle
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(n.x, n.y, radius, 0, Math.PI * 2); ctx.fill();
+
+    // Border
+    ctx.strokeStyle = '#161b22';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // IP label under node
+    ctx.fillStyle = '#c9d1d9';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(n.ip, n.x, n.y + radius + 16);
+
+    // Hostname / vendor
+    let subLabel = n.hostname || n.vendor || '';
+    if (subLabel) {
+      ctx.fillStyle = '#8b949e';
+      ctx.font = '9px sans-serif';
+      ctx.fillText(trunc(subLabel, 18), n.x, n.y + radius + 28);
+    }
+  });
+}
+
+// Mouse handlers for topology
+(function setupTopoMouse() {
+  const canvas = document.getElementById('topoCanvas');
+
+  canvas.addEventListener('mousedown', e => {
+    if (!topoNodes.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+    for (let i = topoNodes.length - 1; i >= 0; i--) {
+      const n = topoNodes[i];
+      const r = n.deviceType === 'network-device' ? 22 : 16;
+      const dx = mx - n.x, dy = my - n.y;
+      if (dx * dx + dy * dy <= r * r * 1.5) {
+        dragNode = n;
+        dragOffX = n.x - mx;
+        dragOffY = n.y - my;
+        break;
+      }
+    }
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    if (!dragNode) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    dragNode.x = mx + dragOffX;
+    dragNode.y = my + dragOffY;
+    renderTopology();
+  });
+
+  canvas.addEventListener('mouseup', () => { dragNode = null; });
+  canvas.addEventListener('mouseleave', () => { dragNode = null; });
+})();
+
+// Resize handler
+window.addEventListener('resize', () => {
+  const topoPanel = document.getElementById('panel-topology');
+  if (topoPanel.classList.contains('active')) {
+    renderTopology();
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
+// FDB
+// ═══════════════════════════════════════════════════════════
+function updateFDBDeviceSelect() {
+  const sel = document.getElementById('fdbDeviceSelect');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Select device --</option>';
+  state.devices.forEach(d => {
+    const label = `${d.ip}${d.hostname ? ' (' + d.hostname + ')' : ''}`;
+    sel.innerHTML += `<option value="${esc(d.ip)}"${d.ip === current ? ' selected' : ''}>${esc(label)}</option>`;
+  });
+}
+
+async function fetchFDB() {
+  const deviceIp = document.getElementById('fdbDeviceSelect').value;
+  const community = document.getElementById('fdbCommunity').value || 'public';
+  const errorEl = document.getElementById('fdbError');
+  errorEl.textContent = '';
+
+  if (!deviceIp) { errorEl.textContent = 'Select a device first'; return; }
+
+  const resp = await fetch(`/api/fdb?device_ip=${encodeURIComponent(deviceIp)}&community=${encodeURIComponent(community)}`);
+  const data = await resp.json();
+
+  if (data.error) {
+    errorEl.textContent = data.error;
+    state.fdbEntries = [];
+  } else {
+    state.fdbEntries = data.entries || [];
+    document.getElementById('fdbCount').textContent = `${state.fdbEntries.length} entries`;
+  }
+  state.fdbSortCol = 'vlan';
+  state.fdbSortAsc = true;
+  renderFDB();
+}
+
+function sortFDB(col) {
+  if (state.fdbSortCol === col) {
+    state.fdbSortAsc = !state.fdbSortAsc;
+  } else {
+    state.fdbSortCol = col;
+    state.fdbSortAsc = true;
+  }
+  renderFDB();
+}
+
+function renderFDB() {
+  let entries = [...state.fdbEntries];
+
+  entries.sort((a, b) => {
+    let va = (a[state.fdbSortCol] ?? '').toString().toLowerCase();
+    let vb = (b[state.fdbSortCol] ?? '').toString().toLowerCase();
+    if (state.fdbSortCol === 'vlan' || state.fdbSortCol === 'port') {
+      va = parseInt(va) || 0;
+      vb = parseInt(vb) || 0;
+      return state.fdbSortAsc ? va - vb : vb - va;
+    }
+    if (va < vb) return state.fdbSortAsc ? -1 : 1;
+    if (va > vb) return state.fdbSortAsc ? 1 : -1;
+    return 0;
+  });
+
+  document.querySelectorAll('.fdb-table th').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.col === state.fdbSortCol);
+  });
+
+  document.getElementById('fdbBody').innerHTML = entries.map(e => `
+    <tr>
+      <td>${e.vlan != null ? `<span style="color:var(--purple)">${e.vlan}</span>` : '—'}</td>
+      <td class="mac-cell">${esc(e.mac || '—')}</td>
+      <td><span style="color:var(--cyan)">${esc(String(e.port))}</span></td>
+    </tr>`).join('');
+
+  document.getElementById('fdbCount').textContent = `${entries.length} entries`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Initial load
+// ═══════════════════════════════════════════════════════════
+fetchDevices();
+fetchTopology();
+</script>
+</body>
+</html>

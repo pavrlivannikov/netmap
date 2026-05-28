@@ -1,6 +1,20 @@
 # Auto-generated from IEEE OUI database
 # 39461 entries
-OUI_DB = {
+# Lazy-load: dict is parsed only on first access (saves ~20MB RSS on import)
+
+import sys
+
+_OUI_DB = None
+
+
+def _load_oui_db():
+    """Load OUI database (lazy — only on first access, not at import time)."""
+    global _OUI_DB
+    if _OUI_DB is not None:
+        return _OUI_DB
+
+    _OUI_DB = {
+
     "000000": "XEROX CORPORATION",
     "000001": "XEROX CORPORATION",
     "000002": "XEROX CORPORATION",
@@ -39462,4 +39476,23 @@ OUI_DB = {
     "FCFE77": "Hitachi Reftechno, Inc.",
     "FCFEC2": "Invensys Controls UK Limited",
     "FCFFAA": "IEEE Registration Authority",
-}
+    }
+    return _OUI_DB
+
+
+def get_vendor(mac: str):
+    """Look up vendor by MAC address. Lazy-loads OUI database on first call."""
+    oui = "".join(c for c in mac if c.isalnum()).upper()[:6]
+    db = _load_oui_db()
+    if oui in db:
+        return db[oui]
+    if oui[:3] in db:
+        return db[oui[:3]]
+    return None
+
+
+# Backward compatibility: lazy-load OUI_DB when accessed via import *
+def __getattr__(name):
+    if name == 'OUI_DB':
+        return _load_oui_db()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

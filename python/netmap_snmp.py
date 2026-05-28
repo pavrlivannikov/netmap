@@ -43,17 +43,40 @@ class SnmpClient:
     def __init__(self, community: str = "public", timeout: float = 2.0):
         self.community = community
         self.timeout = timeout
+        self._engine = None
 
-    def _cmdgen(self):
-        from pysnmp.hlapi import SnmpEngine, CommunityData, UdpTransportTarget, ContextData
-        return SnmpEngine(), CommunityData(self.community, mpModel=1), UdpTransportTarget(('', 161), timeout=int(self.timeout), retries=0), ContextData()
+    @property
+    def _snmp_engine(self):
+        """Lazy singleton SnmpEngine — один на инстанс."""
+        if self._engine is None:
+            from pysnmp.hlapi import SnmpEngine
+            self._engine = SnmpEngine()
+        return self._engine
+
+    def _timeout_cs(self) -> int:
+        """SNMP timeout в сотых долях секунды (pySNMP)."""
+        cs = int(self.timeout * 100)
+        return cs if cs > 0 else 100  # fallback: минимум 1 секунда
+
+    def _transport(self, host: str):
+        """UdpTransportTarget с правильным timeout."""
+        from pysnmp.hlapi import UdpTransportTarget
+        return UdpTransportTarget((host, 161), timeout=self._timeout_cs(), retries=0)
+
+    def _community(self):
+        from pysnmp.hlapi import CommunityData
+        return CommunityData(self.community, mpModel=1)
+
+    def _context(self):
+        from pysnmp.hlapi import ContextData
+        return ContextData()
 
     def probe(self, target: str) -> bool:
         from pysnmp.hlapi.v1arch import get_cmd as getCmd, ObjectType, ObjectIdentity
         try:
-            g = getCmd(*self._cmdgen()[:2],
-                       UdpTransportTarget((target, 161), timeout=int(self.timeout), retries=0),
-                       *self._cmdgen()[3:],
+            g = getCmd(self._snmp_engine, self._community(),
+                       self._transport(target),
+                       self._context(),
                        ObjectType(ObjectIdentity('1.3.6.1.2.1.1.1.0')))
             errorIndication, errorStatus, errorIndex, varBinds = next(g)
             return errorIndication is None and errorStatus == 0
@@ -80,9 +103,9 @@ class SnmpClient:
         from pysnmp.hlapi.v1arch import next_cmd as nextCmd, ObjectType, ObjectIdentity
         results = []
         try:
-            g = nextCmd(*self._cmdgen()[:2],
-                        UdpTransportTarget((target, 161), timeout=int(self.timeout), retries=0),
-                        *self._cmdgen()[3:],
+            g = nextCmd(self._snmp_engine, self._community(),
+                        self._transport(target),
+                        self._context(),
                         ObjectType(ObjectIdentity(base_oid)),
                         lexicographicMode=False)
             for errorIndication, errorStatus, errorIndex, varBinds in g:
@@ -166,9 +189,9 @@ class SnmpClient:
     def _get_string(self, target: str, oid: str) -> Optional[str]:
         from pysnmp.hlapi.v1arch import get_cmd as getCmd, ObjectType, ObjectIdentity
         try:
-            g = getCmd(*self._cmdgen()[:2],
-                       UdpTransportTarget((target, 161), timeout=int(self.timeout), retries=0),
-                       *self._cmdgen()[3:],
+            g = getCmd(self._snmp_engine, self._community(),
+                       self._transport(target),
+                       self._context(),
                        ObjectType(ObjectIdentity(oid)))
             errorIndication, errorStatus, errorIndex, varBinds = next(g)
             if errorIndication or errorStatus:
@@ -184,9 +207,9 @@ class SnmpClient:
     def _get_integer(self, target: str, oid: str) -> Optional[int]:
         from pysnmp.hlapi.v1arch import get_cmd as getCmd, ObjectType, ObjectIdentity
         try:
-            g = getCmd(*self._cmdgen()[:2],
-                       UdpTransportTarget((target, 161), timeout=int(self.timeout), retries=0),
-                       *self._cmdgen()[3:],
+            g = getCmd(self._snmp_engine, self._community(),
+                       self._transport(target),
+                       self._context(),
                        ObjectType(ObjectIdentity(oid)))
             errorIndication, errorStatus, errorIndex, varBinds = next(g)
             if errorIndication or errorStatus:
