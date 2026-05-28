@@ -59,7 +59,7 @@ python netmap_gui.py
 - Экспорт/импорт JSON
 
 ### 3. Web (`netmap_web.py`)
-- FastAPI + Svelte (сборка в `dist/`)
+- FastAPI + HTML/JS/Canvas (встроенный Web UI)
 - REST API: `/api/scan`, `/api/devices`, `/api/topology`
 - Интерактивный граф в браузере
 - Работает на Linux, Windows, macOS
@@ -84,7 +84,7 @@ python netmap_gui.py
 | `netmap_web.py` | FastAPI + Web UI |
 | `oui_data.py` | OUI-база: 39K+ записей IEEE |
 
-Веб-фронтенд: Svelte, сборка в `dist/` (статически раздаётся через FastAPI).
+Веб-фронтенд: чистый HTML/JS/Canvas (один файл `static/index.html`, без node_modules).
 
 ---
 
