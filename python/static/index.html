@@ -270,6 +270,81 @@ body {
   font-size: 14px;
 }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+/* ── Settings Tab ─────────────────────────────── */
+.settings-wrap {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+}
+.settings-wrap h3 {
+  font-size: 14px; color: var(--text);
+  margin-bottom: 4px; margin-top: 20px;
+}
+.settings-wrap h3:first-child { margin-top: 0; }
+.settings-wrap p.desc {
+  font-size: 11px; color: var(--text-dim); margin-bottom: 10px;
+}
+.settings-group {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.settings-group label {
+  display: block;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+  margin-top: 12px;
+}
+.settings-group label:first-of-type { margin-top: 0; }
+.settings-group input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 7px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  outline: none;
+  font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+}
+.settings-group input:focus { border-color: var(--accent); }
+.settings-row {
+  display: flex; gap: 12px;
+}
+.settings-row > div { flex: 1; }
+.settings-actions {
+  display: flex; align-items: center; gap: 10px;
+  padding-top: 4px;
+}
+.settings-actions button {
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 18px;
+  font-size: 12px; font-weight: 600;
+  border-radius: 6px;
+  font-family: inherit;
+}
+.settings-actions button:hover { background: var(--accent-hover); }
+.settings-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.settings-actions button.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.settings-actions button.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.settings-toast {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: inline-block;
+  transition: opacity 0.3s;
+}
+.settings-toast.success { color: var(--green); background: rgba(63,185,80,0.1); }
+.settings-toast.error { color: var(--red); background: rgba(248,81,73,0.1); }
 </style>
 </head>
 <body>
@@ -298,6 +373,7 @@ body {
   <button class="tab-btn active" data-tab="devices">💻 Devices</button>
   <button class="tab-btn" data-tab="topology">🔗 Topology</button>
   <button class="tab-btn" data-tab="fdb">📋 FDB</button>
+  <button class="tab-btn" data-tab="settings">⚙️ Settings</button>
 </div>
 
 <!-- ── Main ──────────────────────────────────────────────── -->
@@ -362,6 +438,54 @@ body {
         </thead>
         <tbody id="fdbBody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div class="tab-panel" id="panel-settings">
+    <div class="settings-wrap">
+      <div class="settings-group">
+        <h3>🔔 Telegram Alerts</h3>
+        <p class="desc">Configure your own Telegram bot for network change notifications.</p>
+        <label for="cfgTelegramToken">Bot Token</label>
+        <input type="password" id="cfgTelegramToken" placeholder="123456789:ABCdef..." autocomplete="off">
+        <label for="cfgTelegramChatId">Chat ID</label>
+        <input type="text" id="cfgTelegramChatId" placeholder="-1001234567890 or 123456789">
+        <div class="settings-actions" style="margin-top:10px">
+          <button class="btn-outline" onclick="testTelegram()" id="btnTestTelegram">📤 Test Message</button>
+          <span id="telegramTestResult"></span>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <h3>🌐 Scan Defaults</h3>
+        <p class="desc">Default values for new scans.</p>
+        <div class="settings-row">
+          <div>
+            <label for="cfgDefaultSubnet">Default Subnet</label>
+            <input type="text" id="cfgDefaultSubnet" placeholder="192.168.1.0/24">
+          </div>
+          <div>
+            <label for="cfgSnmpCommunity">SNMP Community</label>
+            <input type="text" id="cfgSnmpCommunity" placeholder="public">
+          </div>
+        </div>
+        <div class="settings-row" style="margin-top:12px">
+          <div>
+            <label for="cfgScanTimeout">Scan Timeout (s)</label>
+            <input type="number" id="cfgScanTimeout" placeholder="5" min="1" max="60" step="0.5">
+          </div>
+          <div>
+            <label for="cfgAlertCooldown">Alert Cooldown (s)</label>
+            <input type="number" id="cfgAlertCooldown" placeholder="300" min="0" max="3600">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button onclick="saveSettings()">💾 Save Settings</button>
+        <span class="settings-toast" id="settingsToast" style="display:none"></span>
+      </div>
     </div>
   </div>
 
@@ -798,10 +922,98 @@ function renderFDB() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// Settings
+// ═══════════════════════════════════════════════════════════
+async function loadSettings() {
+  try {
+    const resp = await fetch('/api/config');
+    const data = await resp.json();
+    const cfg = data.config || {};
+    document.getElementById('cfgTelegramToken').value = cfg.telegram_token || '';
+    document.getElementById('cfgTelegramChatId').value = cfg.telegram_chat_id || '';
+    document.getElementById('cfgDefaultSubnet').value = cfg.default_subnet || '192.168.1.0/24';
+    document.getElementById('cfgSnmpCommunity').value = cfg.snmp_community || 'public';
+    document.getElementById('cfgScanTimeout').value = cfg.scan_timeout || 5;
+    document.getElementById('cfgAlertCooldown').value = cfg.alert_cooldown || 300;
+  } catch (e) {
+    console.error('Failed to load settings:', e);
+  }
+}
+
+async function saveSettings() {
+  const cfg = {
+    telegram_token: document.getElementById('cfgTelegramToken').value.trim(),
+    telegram_chat_id: document.getElementById('cfgTelegramChatId').value.trim(),
+    default_subnet: document.getElementById('cfgDefaultSubnet').value.trim() || '192.168.1.0/24',
+    snmp_community: document.getElementById('cfgSnmpCommunity').value.trim() || 'public',
+    scan_timeout: parseFloat(document.getElementById('cfgScanTimeout').value) || 5.0,
+    alert_cooldown: parseInt(document.getElementById('cfgAlertCooldown').value) || 300,
+  };
+
+  const toast = document.getElementById('settingsToast');
+  try {
+    const resp = await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: cfg }),
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      toast.className = 'settings-toast success';
+      toast.textContent = '✅ Settings saved';
+      toast.style.display = 'inline-block';
+      // Also update header defaults
+      document.getElementById('subnet').value = cfg.default_subnet || '192.168.1.0/24';
+      document.getElementById('community').value = cfg.snmp_community || 'public';
+    } else {
+      toast.className = 'settings-toast error';
+      toast.textContent = '❌ ' + (data.error || 'Save failed');
+      toast.style.display = 'inline-block';
+    }
+  } catch (e) {
+    toast.className = 'settings-toast error';
+    toast.textContent = '❌ ' + e.message;
+    toast.style.display = 'inline-block';
+  }
+  setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+
+async function testTelegram() {
+  const btn = document.getElementById('btnTestTelegram');
+  const result = document.getElementById('telegramTestResult');
+  btn.disabled = true;
+  btn.textContent = '⏳ Sending...';
+  result.textContent = '';
+  result.className = '';
+
+  // Save first so we test with current values
+  await saveSettings();
+
+  try {
+    const resp = await fetch('/api/config/test-telegram', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      result.textContent = '✅ ' + data.message;
+      result.style.color = 'var(--green)';
+    } else {
+      result.textContent = '❌ ' + (data.error || 'Failed');
+      result.style.color = 'var(--red)';
+    }
+  } catch (e) {
+    result.textContent = '❌ ' + e.message;
+    result.style.color = 'var(--red)';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📤 Test Message';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 // Initial load
 // ═══════════════════════════════════════════════════════════
 fetchDevices();
 fetchTopology();
+loadSettings();
 </script>
 </body>
 </html>

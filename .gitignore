@@ -11,3 +11,8 @@ release/
 *.exe
 *.dll
 backups/
+
+# NetMap config (contains secrets — never commit)
+*.config.json
+~/.netmap*
+netmap_config_override.json

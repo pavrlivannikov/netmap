@@ -25,9 +25,13 @@ from netmap_scanner import (
     discover_networks,
 )
 from netmap_snmp import SnmpClient
-
+from netmap_config import config
+from netmap_alerts import TelegramChannel
 
 app = FastAPI(title="NetMap Web", version="1.0.0")
+
+# Load config on startup
+_config = config.load()
 
 # ── CORS middleware ──────────────────────────────────────────────
 from starlette.middleware.cors import CORSMiddleware
@@ -270,6 +274,71 @@ async def api_fdb(
         return {"device_ip": device_ip, "entries": [], "error": str(e)}
 
 
+# ── Token masking helper ────────────────────────────────────────
+
+def _mask_token(token: str) -> str:
+    """Mask token for display: show first 8 and last 4 chars."""
+    if not token:
+        return ""
+    if len(token) <= 14:
+        return token[:6] + "••••••"
+    return token[:8] + "••••••" + token[-4:]
+
+
+# ── API: Config ──────────────────────────────────────────────────
+
+@app.get("/api/config")
+async def api_config_get():
+    """Return current config (token masked)."""
+    cfg = config.to_dict()
+    token = cfg.get("telegram_token", "")
+    cfg["telegram_token"] = _mask_token(token)
+    return {"config": cfg}
+
+
+@app.post("/api/config")
+async def api_config_save(payload: dict):
+    """Save configuration. Accepts partial dict."""
+    incoming = payload.get("config", payload)
+    if not isinstance(incoming, dict):
+        raise HTTPException(400, "Expected JSON object with 'config' key or flat dict")
+
+    # Preserve existing token if placeholder sent
+    token = incoming.get("telegram_token", "")
+    if token and "••••" in token:
+        incoming["telegram_token"] = config.get("telegram_token", "")
+
+    config.update(incoming)
+    config.save()
+    return {"ok": True, "message": "Settings saved"}
+
+
+@app.post("/api/config/test-telegram")
+async def api_config_test_telegram():
+    """Send a test message via configured Telegram bot."""
+    token = config.get("telegram_token", "")
+    chat_id = config.get("telegram_chat_id", "")
+
+    if not token or not chat_id:
+        return {"ok": False, "error": "Telegram token or chat_id not configured"}
+
+    channel = TelegramChannel(token, str(chat_id), timeout=10.0)
+    from netmap_alerts import Alert, AlertType
+    test_alert = Alert(
+        AlertType.NEW_DEVICE,
+        "127.0.0.1",
+        {
+            "hostname": "netmap-test",
+            "vendor": "NetMap Config Test",
+            "mac": "00:00:00:00:00:00",
+        },
+    )
+    ok = channel.send(test_alert)
+    if ok:
+        return {"ok": True, "message": "Test message sent to Telegram"}
+    return {"ok": False, "error": "Failed to send Telegram message (check token & chat_id)"}
+
+
 # ── Static files ─────────────────────────────────────────────────
 
 static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -293,6 +362,7 @@ def main():
     args = parser.parse_args()
 
     print(f"NetMap Web → http://{args.host}:{args.port}")
+    print(f"Config: {config._path}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
