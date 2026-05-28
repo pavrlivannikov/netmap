@@ -31,15 +31,19 @@ python netmap_web.py --port 8080
 # CLI: быстрый скан
 python netmap_scanner.py --quick
 
-# GUI (tkinter)
+# GUI — быстрый (tkinter, без зависимостей)
 python netmap_gui.py
+
+# GUI — продвинутый (PyQt6)
+pip install pyqt6
+python pyqt6/main_window.py
 ```
 
 **Зависимости:** `netifaces`, `pysnmp`, `paramiko`, `fastapi`, `uvicorn`
 
 ---
 
-## Три способа использования
+## Четыре способа использования
 
 ### 1. CLI (`netmap_scanner.py`)
 ```
@@ -51,14 +55,18 @@ python netmap_gui.py
 --output FILE   Сохранить в JSON
 ```
 
-### 2. GUI (`netmap_gui.py`)
-- Десктопное приложение на tkinter
+### 2. Быстрый GUI — tkinter (`netmap_gui.py`)
+- Мгновенный запуск с флешки, ноль зависимостей
 - Граф топологии с drag/zoom/pan
 - Контекстное меню на устройствах
-- Авто-мониторинг с алертами
 - Экспорт/импорт JSON
 
-### 3. Web (`netmap_web.py`)
+### 3. Продвинутый GUI — PyQt6 (`pyqt6/main_window.py`)
+- Современный интерфейс, тёмная тема
+- Интерактивные графики и отчёты
+- В разработке
+
+### 4. Web (`netmap_web.py`)
 - FastAPI + HTML/JS/Canvas (встроенный Web UI)
 - REST API: `/api/scan`, `/api/devices`, `/api/topology`
 - Интерактивный граф в браузере
