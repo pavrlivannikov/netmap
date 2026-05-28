@@ -1,6 +1,6 @@
 # NetMap — кросс-платформенный сетевой анализатор
 
-Сканирование сети, мониторинг изменений, построение топологии. Три режима работы: CLI, GUI, Web.
+Сканирование сети, мониторинг изменений, построение топологии. Четыре режима: CLI, быстрый GUI, продвинутый GUI, Web.
 
 ---
 
@@ -76,21 +76,23 @@ python pyqt6/main_window.py
 
 ## Архитектура
 
-Проект на Python, 11 модулей:
+Проект на Python, 13 модулей:
 
 | Модуль | Назначение |
 |--------|------------|
 | `netmap_device.py` | Dataclass'ы: Device, Port, Edge, ScanResult |
-| `netmap_utils.py` | Хелперы: подсети, hostname, OUI, ping, шлюз |
+| `netmap_utils.py` | Хелперы: подсети, hostname, OUI, ping, шлюз, Win32 API |
 | `netmap_discovery.py` | Обнаружение сетей, ARP-скан, ping-свип |
 | `netmap_async.py` | Asyncio-сканер (в 5-8× быстрее потоков) |
 | `netmap_snmp.py` | SNMP v2c: sysName, sysDescr, LLDP, FDB |
 | `netmap_ssh.py` | SSH FDB: Cisco, TP-Link, MikroTik |
 | `netmap_scanner.py` | Фасад: quick, discover, deep, topology, monitor |
 | `netmap_monitor.py` | Diff-движок, сравнение снапшотов |
-| `netmap_gui.py` | Tkinter GUI |
+| `netmap_db.py` | SQLite: история сканов, статистика, миграция из JSON |
+| `netmap_alerts.py` | Алерты: Telegram, Console, Webhook + MAC-spoofing |
+| `netmap_config.py` | Конфигурация (~/.netmap_config.json) |
+| `netmap_gui.py` | Tkinter GUI (быстрый) |
 | `netmap_web.py` | FastAPI + Web UI |
-| `oui_data.py` | OUI-база: 39K+ записей IEEE |
 
 Веб-фронтенд: чистый HTML/JS/Canvas (один файл `static/index.html`, без node_modules).
 
@@ -142,7 +144,10 @@ diff = monitor_diff(previous_scan, current_scan)
 - [ ] **nmap-интеграция** — OS detection через nmap
 - [ ] **Wi-Fi survey** — беспроводные сети
 - [ ] **Пакеты:** Windows (.msi), Linux (.deb/.AppImage), macOS
-- [ ] **SQLite** — история сканов
+- [ ] **PyQt6** — завершение продвинутого GUI
+- [x] **SQLite** — история сканов
+- [x] **Алерты** — Telegram, Console, Webhook
+- [x] **Конфигурация** — настройки через файл и Web UI
 
 Подробнее: [docs/ROADMAP.md](docs/ROADMAP.md)
 
