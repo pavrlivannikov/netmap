@@ -142,4 +142,4 @@ diff = monitor_diff(previous_scan, current_scan)
 
 ## Версия
 
-**v2.0.2** — май 2026
+**v0.3.0** — май 2026
